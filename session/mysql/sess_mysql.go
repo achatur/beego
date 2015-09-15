@@ -21,7 +21,7 @@
 // mysql session support need create table as sql:
 //	CREATE TABLE `session` (
 //	`session_key` char(64) NOT NULL,
-//	`session_data` blob,
+//	session_data` blob,
 //	`session_expiry` int(11) unsigned NOT NULL,
 //	PRIMARY KEY (`session_key`)
 //	) ENGINE=MyISAM DEFAULT CHARSET=utf8;
@@ -42,6 +42,7 @@ package session
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -111,7 +112,7 @@ func (st *MysqlSessionStore) SessionRelease(w http.ResponseWriter) {
 		return
 	}
 	st.c.Exec("UPDATE session set `session_data`=?, `session_expiry`=? where session_key=?",
-		b, time.Now().Unix(), st.sid)
+		b, time.Now().Unix()+mysqlpder.maxlifetime, st.sid)
 
 }
 
@@ -209,6 +210,17 @@ func (mp *MysqlProvider) SessionDestroy(sid string) error {
 // delete expired values in mysql session
 func (mp *MysqlProvider) SessionGC() {
 	c := mp.connectInit()
+	fmt.Printf("In SessionGC. time.Now - Maxlife = %v\n", time.Now().Unix()-mp.maxlifetime)
+	rows, err := c.Query("SELECT session_expiry from session where session_expiry < ?", time.Now().Unix()-mp.maxlifetime)
+	defer rows.Close()
+	var se int
+	if err != nil {
+		fmt.Printf("Error = %v\n", err.Error())
+	}
+	for rows.Next() {
+		rows.Scan(&se)
+		fmt.Printf("deleted: %v\n", se)
+	}
 	c.Exec("DELETE from session where session_expiry < ?", time.Now().Unix()-mp.maxlifetime)
 	c.Close()
 	return

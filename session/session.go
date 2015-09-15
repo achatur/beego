@@ -136,55 +136,61 @@ func NewManager(provideName, config string) (*Manager, error) {
 // Start session. generate or read the session id from http request.
 // if session id exists, return SessionStore with this id.
 func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (session SessionStore, err error) {
+	fmt.Printf("in SessionStart\n")
 	cookie, errs := r.Cookie(manager.config.CookieName)
 	if errs != nil || cookie.Value == "" {
+		fmt.Printf("Cookies blank\n")
 		sid, errs := manager.sessionId(r)
 		if errs != nil {
 			return nil, errs
 		}
 		session, err = manager.provider.SessionRead(sid)
-		cookie = &http.Cookie{
-			Name:     manager.config.CookieName,
+		fmt.Printf("SessionStart Session = %v\n", session)
+		fmt.Printf("SessionStart cookie config = %v\n", manager.config)
+		cookie = &http.Cookie{Name: manager.config.CookieName,
 			Value:    url.QueryEscape(sid),
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   manager.isSecure(r),
-			Domain:   manager.config.Domain,
-		}
-		if manager.config.CookieLifeTime > 0 {
+			Secure:   manager.config.Secure,
+			Domain:   manager.config.Domain}
+		if manager.config.CookieLifeTime >= 0 {
+			fmt.Printf("CookieLifeTime = %v\n", manager.config.CookieLifeTime)
 			cookie.MaxAge = manager.config.CookieLifeTime
-			cookie.Expires = time.Now().Add(time.Duration(manager.config.CookieLifeTime) * time.Second)
 		}
 		if manager.config.EnableSetCookie {
+			fmt.Printf("SessionStore enableSetCookie= %v\n", manager.config.EnableSetCookie)
 			http.SetCookie(w, cookie)
 		}
 		r.AddCookie(cookie)
 	} else {
+		fmt.Printf("Cookie not nil or blank, %v\n", cookie.Value)
 		sid, errs := url.QueryUnescape(cookie.Value)
 		if errs != nil {
 			return nil, errs
 		}
 		if manager.provider.SessionExist(sid) {
+			fmt.Printf("SessionStore sessionExists\n")
 			session, err = manager.provider.SessionRead(sid)
+			fmt.Printf("SessionStore session %v\n", session)
 		} else {
 			sid, err = manager.sessionId(r)
+			fmt.Printf("SessionStore dne, sid %v\n", sid)
 			if err != nil {
 				return nil, err
 			}
 			session, err = manager.provider.SessionRead(sid)
-			cookie = &http.Cookie{
-				Name:     manager.config.CookieName,
+			fmt.Printf("SessionStore dne session: %v\n", session)
+			cookie = &http.Cookie{Name: manager.config.CookieName,
 				Value:    url.QueryEscape(sid),
 				Path:     "/",
 				HttpOnly: true,
-				Secure:   manager.isSecure(r),
-				Domain:   manager.config.Domain,
-			}
-			if manager.config.CookieLifeTime > 0 {
+				Secure:   manager.config.Secure,
+				Domain:   manager.config.Domain}
+			if manager.config.CookieLifeTime >= 0 {
 				cookie.MaxAge = manager.config.CookieLifeTime
-				cookie.Expires = time.Now().Add(time.Duration(manager.config.CookieLifeTime) * time.Second)
 			}
 			if manager.config.EnableSetCookie {
+				fmt.Printf("SessionStore dne cookie: %v\n", cookie)
 				http.SetCookie(w, cookie)
 			}
 			r.AddCookie(cookie)
@@ -196,6 +202,7 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 // Destroy session by its id in http request cookie.
 func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(manager.config.CookieName)
+	fmt.Printf("SessionDestroy: cookie = %v\n", cookie)
 	if err != nil || cookie.Value == "" {
 		return
 	} else {
@@ -237,7 +244,7 @@ func (manager *Manager) SessionRegenerateId(w http.ResponseWriter, r *http.Reque
 			Value:    url.QueryEscape(sid),
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   manager.isSecure(r),
+			Secure:   manager.config.Secure,
 			Domain:   manager.config.Domain,
 		}
 	} else {
@@ -247,9 +254,8 @@ func (manager *Manager) SessionRegenerateId(w http.ResponseWriter, r *http.Reque
 		cookie.HttpOnly = true
 		cookie.Path = "/"
 	}
-	if manager.config.CookieLifeTime > 0 {
+	if manager.config.CookieLifeTime >= 0 {
 		cookie.MaxAge = manager.config.CookieLifeTime
-		cookie.Expires = time.Now().Add(time.Duration(manager.config.CookieLifeTime) * time.Second)
 	}
 	http.SetCookie(w, cookie)
 	r.AddCookie(cookie)
@@ -273,18 +279,4 @@ func (manager *Manager) sessionId(r *http.Request) (string, error) {
 		return "", fmt.Errorf("Could not successfully read from the system CSPRNG.")
 	}
 	return hex.EncodeToString(b), nil
-}
-
-// Set cookie with https.
-func (manager *Manager) isSecure(req *http.Request) bool {
-	if !manager.config.Secure {
-		return false
-	}
-	if req.URL.Scheme != "" {
-		return req.URL.Scheme == "https"
-	}
-	if req.TLS == nil {
-		return false
-	}
-	return true
 }

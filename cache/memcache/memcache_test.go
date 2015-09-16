@@ -17,7 +17,7 @@ package memcache
 import (
 	_ "github.com/bradfitz/gomemcache/memcache"
 
-	"github.com/astaxie/beego/cache"
+	"github.com/achatur/beego/cache"
 	"strconv"
 	"testing"
 	"time"

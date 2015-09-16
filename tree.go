@@ -19,7 +19,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/astaxie/beego/utils"
+	"github.com/achatur/beego/utils"
 )
 
 type Tree struct {

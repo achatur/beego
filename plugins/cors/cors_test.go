@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/astaxie/beego"
-	"github.com/astaxie/beego/context"
+	"github.com/achatur/beego"
+	"github.com/achatur/beego/context"
 )
 
 type HttpHeaderGuardRecorder struct {
